@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apartman-capacitor
 
     steps:
       - name: Kód letöltése
@@ -55,4 +58,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: IDE_IRD_A_MAPPA_NEVET/android/app/build/outputs/apk/debug/app-debug.apk
