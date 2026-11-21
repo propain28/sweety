@@ -21,23 +21,14 @@ jobs:
         with:
           node-version: 22
 
-      - name: Java (JDK 17) beállítása
+      - name: Java (JDK 21) beállítása
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Hiányzó Capacitor alapok pótlása és telepítés
-        run: |
-          if [ ! -f "package.json" ]; then
-            npm init -y
-          fi
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
-            mkdir -p www
-            cp *.html *.css *.js www/ 2>/dev/null || true
-            npx cap init "SajatApp" "com.sajat.app" --web-dir=www
-          fi
+      - name: Függőségek telepítése
+        run: npm install
 
       - name: Android platform hozzáadása (ha még nincs)
         run: |
