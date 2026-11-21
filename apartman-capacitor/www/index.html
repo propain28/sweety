@@ -1,0 +1,782 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#9C2D6E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Apartman Foglalások</title>
+<style>
+html{-webkit-text-size-adjust:100%}
+body{margin:0}
+[hidden]{display:none!important}
+/* Layout: header with Nap/Hét switch, then one view at a time. The week grid is apartments x half-days, so check-in (afternoon) and check-out (morning) line up like real stays. */
+:root{
+  --bg:#FCF0F5; --surface:#FFFFFF; --surface2:#F5DCE6; --fg:#34131F; --muted:#744A5B; --line:#EFD0DE;
+  --accent:#9C2D6E; --accent-fg:#FFFFFF; --band:#9C2D6E; --band-fg:#FFFFFF; --danger:#B3261E; --ok:#1F7A4D; --warn:#9A5B00;
+  --a1:#9C2D6E; --a2:#2F6F8F; --a3:#D98A1C; --a4:#6B5CC2; --danger-fg:#FFFFFF;
+  --font:'Manrope',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1E0F17; --surface:#2A1722; --surface2:#38202D; --fg:#F7E6EE; --muted:#C9A3B6; --line:#4A2C3B;
+    --accent:#E07DB5; --accent-fg:#2B0A1D; --band:#5A1B40; --band-fg:#FFE8F3; --danger:#FF8A80; --ok:#6FD3A0; --warn:#F0B35A;
+    --a1:#E07DB5; --a2:#6FB4D6; --a3:#F0B24F; --a4:#A99CF0; --danger-fg:#3B0B08; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1E0F17; --surface:#2A1722; --surface2:#38202D; --fg:#F7E6EE; --muted:#C9A3B6; --line:#4A2C3B;
+  --accent:#E07DB5; --accent-fg:#2B0A1D; --band:#5A1B40; --band-fg:#FFE8F3; --danger:#FF8A80; --ok:#6FD3A0; --warn:#F0B35A;
+  --a1:#E07DB5; --a2:#6FB4D6; --a3:#F0B24F; --a4:#A99CF0; --danger-fg:#3B0B08; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{max-width:1100px;margin:0 auto;padding-block:16px 110px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+h1{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:.85rem}
+.tabs{display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:2px;margin-bottom:18px;overflow-x:auto}
+.tab{flex:1 0 auto;border:0;background:none;padding:8px 6px;border-radius:8px;font-weight:700;color:var(--muted);white-space:nowrap}
+.tab[aria-selected=true]{background:var(--accent);color:var(--accent-fg)}
+
+.nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.nav h2{margin:0;font-size:1.25rem;font-weight:800;flex:1 1 220px;min-width:0;letter-spacing:-.01em;text-wrap:balance}
+.nav h2 small{display:block;font-size:.8rem;font-weight:600;color:var(--muted);letter-spacing:0}
+.ib{width:40px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:1.1rem;line-height:1}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 14px;font-weight:700}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+.btn.armed{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn[disabled]{opacity:.55;cursor:default}
+.jump{width:auto;padding:8px 10px}
+
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.85rem;color:var(--muted)}
+.stat b{color:var(--fg);font-size:1.15rem;margin-right:5px}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin-bottom:24px}
+.acard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.acard.occ{background:color-mix(in srgb,var(--danger) 14%,var(--surface));border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}
+.acard .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.acard .hd .tag{font-size:.78rem;padding:3px 10px}
+.acard .nm{font-weight:800;font-size:1.05rem;display:inline-flex;align-items:center;gap:8px}
+.acard .nm i{width:11px;height:11px;border-radius:3px;background:var(--c);flex:none}
+.acard .ln{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+.arow{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+.arow .an{font-weight:700;overflow-wrap:anywhere}
+.acard .add{align-self:flex-start;background:none;border:0;color:var(--accent);font-weight:700;padding:2px 0;text-decoration:underline}
+.tag.occ{background:var(--danger);color:var(--danger-fg)}
+.tag{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--surface2);color:var(--muted);align-self:flex-start;white-space:nowrap}
+.tag.arr{background:var(--accent);color:var(--accent-fg)}
+.tag.dep,.tag.swap{background:color-mix(in srgb,var(--warn) 22%,var(--surface));color:var(--warn)}
+.tag.free{background:color-mix(in srgb,var(--ok) 20%,var(--surface));color:var(--ok)}
+.tag.bad{background:color-mix(in srgb,var(--danger) 18%,var(--surface));color:var(--danger)}
+.tag.busy{background:var(--surface2);color:var(--fg)}
+
+.sec{margin-bottom:24px}
+.sec h3{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;display:flex;gap:8px;align-items:center}
+.sec h3 em{font-style:normal;background:var(--surface2);border-radius:999px;padding:0 8px;color:var(--fg)}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.none{color:var(--muted);font-size:.9rem;padding:2px 0}
+.bcard{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.bc-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:700}
+.chip i{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.bc-name{font-weight:800;font-size:1.02rem;overflow-wrap:anywhere}
+.bc-meta{color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+
+.banner{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:color-mix(in srgb,var(--warn) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--warn) 45%,var(--line));border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:.88rem}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:16px;margin-bottom:18px;color:var(--muted)}
+.empty b{color:var(--fg)}
+
+.weekwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:24px}
+.week{min-width:680px}
+.wk-row{display:grid;grid-template-columns:96px minmax(0,1fr)}
+.wk-label{position:sticky;left:0;z-index:3;background:var(--surface);padding:10px;font-weight:800;font-size:.85rem;border-right:1px solid var(--line);display:flex;align-items:center;gap:7px;min-width:0}
+.wk-label i{width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+.wk-label span{overflow:hidden;text-overflow:ellipsis}
+.wk-lane{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));grid-auto-rows:60px}
+.wk-head .wk-lane{grid-auto-rows:auto}
+.wk-day{grid-column:span 2;text-align:center;padding:8px 0;border-left:1px solid var(--line);display:flex;flex-direction:column;line-height:1.2}
+.wk-day:first-child{border-left:0}
+.wk-day span{font-size:1.1rem;font-weight:800}
+.wk-day b{font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.wk-day.today span{color:var(--accent)}
+.wk-row+.wk-row .wk-label,.wk-row+.wk-row .wk-lane{border-top:1px solid var(--line)}
+.wk-cell{border:0;border-left:1px solid var(--line);background:transparent;grid-row:1}
+.wk-cell.today{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.wk-cell:hover{background:var(--surface2)}
+.wk-bar{grid-row:1;z-index:2;margin:8px 1px;border:0;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 26%,var(--surface));border-radius:6px;padding:4px 8px;text-align:left;display:flex;flex-direction:column;justify-content:center;min-width:0;overflow:hidden}
+.wk-bar b{font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-bar small{color:var(--muted);font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wk-bar.cut-l{border-left-width:0;border-top-left-radius:0;border-bottom-left-radius:0}
+.wk-bar.cut-r{border-top-right-radius:0;border-bottom-right-radius:0}
+
+.wl{display:grid;gap:8px}
+.wl-item{display:flex;align-items:center;gap:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:left;flex-wrap:wrap}
+.wl-d{font-weight:800;min-width:70px}
+.wl-g{font-weight:700;flex:1 1 140px;min-width:0;overflow-wrap:anywhere}
+
+.foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center;color:var(--muted);font-size:.82rem}
+.linkbtn{background:none;border:0;color:var(--accent);font-weight:700;padding:6px 0;text-decoration:underline}
+
+.banner.ok{background:color-mix(in srgb,var(--ok) 14%,var(--surface));border-color:color-mix(in srgb,var(--ok) 45%,var(--line))}
+.hint{color:var(--muted);font-size:.88rem;margin:0 0 12px}
+.mgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.mhead div{text-align:center;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:4px 0}
+.mcell{background:var(--surface);border:1px solid var(--line);border-radius:8px;min-height:72px;padding:6px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;min-width:0;text-align:left}
+.mcell.out{opacity:.45}
+.mcell.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.mcell:hover{background:var(--surface2)}
+.mcell .md{font-weight:800;font-size:.9rem}
+.mcell.today .md{color:var(--accent)}
+.sq{display:flex;gap:2px}
+.sq i{width:8px;height:8px;border-radius:2px;border:1px solid var(--c);background:transparent}
+.sq i.on{background:var(--c)}
+.mv{display:flex;gap:6px;font-size:.72rem;font-weight:800;min-height:1em}
+.mv .a{color:var(--accent)}
+.mv .d{color:var(--warn)}
+.legend{display:flex;gap:6px 14px;flex-wrap:wrap;margin:12px 0 8px}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.tbl{border-collapse:collapse;width:100%;min-width:540px}
+.tbl th,.tbl td{padding:10px 12px;text-align:right;white-space:nowrap}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl th{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.tbl td{border-top:1px solid var(--line)}
+.tbl tr.tot td{font-weight:800;background:var(--surface2)}
+.srow{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--bg)}
+label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--fg);font-size:.9rem;margin-bottom:8px}
+label.chk input{width:20px;height:20px;padding:0}
+.srx{margin:8px 0 0}
+.flag{margin:8px 0 0;font-size:.85rem;font-weight:700;min-height:1.2em;overflow-wrap:anywhere}
+.flag.err{color:var(--danger)}
+.flag.dup,.flag.warn{color:var(--warn)}
+.flag.ok{color:var(--ok)}
+.search{margin-bottom:14px;font-size:1rem;padding:11px 12px}
+.sec h3.res{margin-top:4px}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;pointer-events:none;padding-top:8px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.pill{pointer-events:auto;box-shadow:0 6px 18px rgba(0,0,0,.28);border-radius:999px;padding:13px 22px;font-size:1rem}
+
+.ov{position:fixed;inset:0;background:rgba(8,16,20,.6);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding-top:env(safe-area-inset-top,0px)}
+.sheet{background:var(--surface);width:min(580px,100%);max-height:94%;overflow:auto;border-radius:16px 16px 0 0;padding-top:18px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:640px){.ov{align-items:center}.sheet{border-radius:16px;padding-left:20px;padding-right:20px}}
+.sheet h2{margin:0 0 14px;font-size:1.2rem;font-weight:800}
+fieldset{border:0;padding:0;margin:0;min-width:0}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fg .full{grid-column:1/-1}
+label{display:flex;flex-direction:column;gap:4px;font-size:.78rem;font-weight:700;color:var(--muted);min-width:0}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:1rem;width:100%;min-width:0}
+textarea{resize:vertical;min-height:64px}
+.err{color:var(--danger);font-weight:700;font-size:.88rem;min-height:1.3em;margin:10px 0 0;overflow-wrap:anywhere}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.acts .grow{flex:1}
+@media (max-width:420px){.fg{grid-template-columns:1fr}.btn{padding:10px 12px}}
+.backup{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0 16px}
+.band{background:var(--band);color:var(--band-fg);padding-top:env(safe-area-inset-top,0px)}
+.band-in{max-width:1100px;margin:0 auto;padding-top:20px;padding-bottom:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.band b{display:block;font-size:30px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.band span{font-size:12.5px;opacity:.92}
+.backup h3{margin:0 0 6px;font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.backup .hint{margin:0}
+.backup .acts{margin-top:10px}
+</style>
+</head>
+<body>
+
+<header class="band"><div class="band-in"><b>Sweety</b><span>rendezvényház és apartman</span></div></header>
+<div class="app">
+  <div class="tabs" role="tablist" aria-label="Nézet">
+    <button class="tab" role="tab" id="tab-day" data-act="view" data-v="day">Nap</button>
+    <button class="tab" role="tab" id="tab-week" data-act="view" data-v="week">Hét</button>
+    <button class="tab" role="tab" id="tab-month" data-act="view" data-v="month">Hónap</button>
+    <button class="tab" role="tab" id="tab-guests" data-act="view" data-v="guests">Vendégek</button>
+    <button class="tab" role="tab" id="tab-stats" data-act="view" data-v="stats">Összesítés</button>
+  </div>
+  <main id="main"></main>
+  <section class="backup" aria-labelledby="bk-h">
+    <h3 id="bk-h">Adatmentés</h3>
+    <p class="hint" id="bk-info"></p>
+    <div class="acts">
+      <button class="btn primary" data-act="backup">Mentés (Google Drive)</button>
+      <button class="btn" data-act="restore">Visszaállítás fájlból</button>
+    </div>
+    <input type="file" id="restore-file" accept="application/json,.json" hidden>
+  </section>
+  <div class="foot">
+    <span>A foglalások ezen a telefonon tárolódnak.</span>
+    <button class="linkbtn" data-act="names" id="namesbtn">Apartmanok átnevezése</button>
+  </div>
+</div>
+<div class="dock">
+  <button class="btn primary pill" id="fab" data-act="new" hidden>+ Új foglalás</button>
+</div>
+<div id="modal"></div>
+
+<script>
+(function(){
+  var DAYS=['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
+  var SH=['V','H','K','Sze','Cs','P','Szo'];
+  var MON=['jan.','febr.','márc.','ápr.','máj.','jún.','júl.','aug.','szept.','okt.','nov.','dec.'];
+  var MONL=['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+  var DAY_MS=86400000;
+  var DEFAULT_NAMES=['Apartman 1','Apartman 2','Apartman 3','Apartman 4'];
+
+  var $=function(s){return document.querySelector(s);};
+  var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+  var pad=function(n){return String(n).padStart(2,'0');};
+  function todayStr(){var n=new Date();return n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate());}
+  function u(s){var p=s.split('-').map(Number);return Date.UTC(p[0],p[1]-1,p[2]);}
+  function str(ms){return new Date(ms).toISOString().slice(0,10);}
+  function add(s,n){return str(u(s)+n*DAY_MS);}
+  function wd(s){return new Date(u(s)).getUTCDay();}
+  function dom(s){return new Date(u(s)).getUTCDate();}
+  function fmt(s,y){var d=new Date(u(s));return (y?d.getUTCFullYear()+'. ':'')+MON[d.getUTCMonth()]+' '+d.getUTCDate()+'.';}
+  function fmtLong(s){var d=new Date(u(s));return d.getUTCFullYear()+'. '+MONL[d.getUTCMonth()]+' '+d.getUTCDate()+'.';}
+  function monday(s){return add(s,-((wd(s)+6)%7));}
+  function nights(b){return Math.round((u(b.checkOut)-u(b.checkIn))/DAY_MS);}
+  function money(n){return (Number(n)||0).toLocaleString('hu-HU')+' Ft';}
+  function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+  function addMonths(s,n){var d=new Date(u(s));return str(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+n,1));}
+  function monthTitle(s){var d=new Date(u(s));return d.getUTCFullYear()+'. '+MONL[d.getUTCMonth()];}
+  function byApt(x,y){return x.apt-y.apt;}
+
+  var S={view:'day',date:todayStr(),bookings:[],names:DEFAULT_NAMES.slice(),loaded:false,slow:false,canWrite:true,nodb:false,err:null,q:''};
+  var db=null, M=null;
+
+  function payPill(b){
+    var price=+b.price||0, paid=+b.paid||0;
+    if(!price&&!paid) return '';
+    if(paid>=price) return '<span class="tag free">Fizetve</span>';
+    if(paid>0) return '<span class="tag dep">Előleg '+esc(money(paid))+'</span>';
+    return '<span class="tag bad">Fizetetlen</span>';
+  }
+
+  function bcard(b,yr){
+    var a=b.apt|0;
+    var line2=[b.source,b.phone].filter(Boolean).join(' · ');
+    return '<button class="bcard" style="--c:var(--a'+(a+1)+')" data-act="edit" data-id="'+esc(b.id)+'">'+
+      '<span class="bc-top"><span class="chip"><i></i>'+esc(S.names[a])+'</span>'+payPill(b)+'</span>'+
+      '<span class="bc-name">'+esc(b.guest)+'</span>'+
+      (b.type==='ceg'?'<span class="bc-meta">'+esc(b.company||'Cég')+(b.taxNumber?' · adószám: '+esc(b.taxNumber):'')+'</span>':'')+
+      '<span class="bc-meta">'+esc(fmt(b.checkIn,yr))+' – '+esc(fmt(b.checkOut,yr))+' · '+nights(b)+' éj'+(b.people?' · '+esc(b.people)+' fő':'')+'</span>'+
+      (line2?'<span class="bc-meta">'+esc(line2)+'</span>':'')+
+      (b.email?'<span class="bc-meta">'+esc(b.email)+'</span>':'')+
+      (yr&&b.address?'<span class="bc-meta">'+esc(b.address)+'</span>':'')+
+    '</button>';
+  }
+
+  function section(title,list,emptyText){
+    return '<section class="sec"><h3>'+title+' <em>'+list.length+'</em></h3>'+
+      (list.length?'<div class="list">'+list.map(function(b){return bcard(b);}).join('')+'</div>':'<div class="none">'+emptyText+'</div>')+
+    '</section>';
+  }
+
+  function matches(b,q){
+    q=q.trim().toLowerCase(); if(!q) return true;
+    var hay=[b.guest,b.company,b.taxNumber,b.phone,b.email,b.address,b.note,b.source,S.names[b.apt|0]].join(' ').toLowerCase();
+    if(hay.indexOf(q)>=0) return true;
+    var qd=q.replace(/\D/g,'');
+    if(qd.length>=3){ var hd=((b.phone||'')+' '+(b.taxNumber||'')).replace(/\D/g,''); return hd.indexOf(qd)>=0; }
+    return false;
+  }
+  function guestResults(){
+    var list=S.bookings.filter(function(b){return matches(b,S.q);}).sort(function(x,y){return x.checkIn<y.checkIn?1:-1;});
+    return '<section class="sec"><h3 class="res">'+(S.q.trim()?'Találatok':'Összes foglalás')+' <em>'+list.length+'</em></h3>'+
+      (list.length?'<div class="list">'+list.map(function(b){return bcard(b,true);}).join('')+'</div>':'<div class="none">Nincs a keresésnek megfelelő foglalás.</div>')+'</section>';
+  }
+  function guestView(){
+    return '<div class="nav"><h2>Vendégek<small>Keresés név, cég, adószám, telefonszám vagy e-mail alapján</small></h2></div>'+
+      '<input class="search" id="gq" type="search" placeholder="Pl. Kovács, 12345678-2-41 vagy +36 30…" value="'+esc(S.q)+'" autocomplete="off" aria-label="Keresés a vendégek között">'+
+      '<div id="gres">'+guestResults()+'</div>';
+  }
+
+  function normTax(s){
+    var d=String(s).replace(/\D/g,'');
+    return d.length===11?d.slice(0,8)+'-'+d.charAt(8)+'-'+d.slice(9):null;
+  }
+
+  function dayRow(b,cls,label,text){
+    return '<button class="arow" data-act="edit" data-id="'+esc(b.id)+'"><span class="tag '+cls+'">'+esc(label)+'</span><span class="an">'+esc(text)+'</span></button>';
+  }
+  function dayView(){
+    var D=S.date,B=S.bookings,T=todayStr();
+    var h='<div class="nav">'+
+      '<button class="ib" data-act="prev" aria-label="Előző nap">‹</button>'+
+      '<button class="ib" data-act="next" aria-label="Következő nap">›</button>'+
+      '<button class="btn" data-act="today">Ma</button>'+
+      '<input class="jump" type="date" id="jump" value="'+D+'" aria-label="Ugrás dátumra">'+
+      '<h2>'+cap(DAYS[wd(D)])+(D===T?' · ma':'')+'<small>'+fmtLong(D)+'</small></h2>'+
+    '</div>';
+    h+='<div class="cards">'+[0,1,2,3].map(function(a){
+      var A=B.filter(function(b){return b.apt===a;});
+      var de=A.filter(function(b){return b.checkOut===D;});
+      var ar=A.filter(function(b){return b.checkIn===D;});
+      var st=A.filter(function(b){return b.checkIn<D&&b.checkOut>D;});
+      var occ=ar.length>0||st.length>0;
+      var rows='';
+      de.forEach(function(b){ rows+=dayRow(b,'dep','Távozik',b.guest); });
+      ar.forEach(function(b){ rows+=dayRow(b,'arr','Érkezik'+(b.people?' · '+b.people+' fő':''),b.guest); });
+      st.forEach(function(b){ rows+=dayRow(b,'busy','Bent · '+fmt(b.checkOut)+'-ig',b.guest+(b.people?' · '+b.people+' fő':'')); });
+      var foot='';
+      if(!occ){
+        var nx=A.filter(function(b){return b.checkIn>D;}).sort(function(x,y){return x.checkIn<y.checkIn?-1:1;})[0];
+        foot='<span class="ln">'+(nx?'Következő érkezés: '+esc(fmt(nx.checkIn)):'Nincs közelgő foglalás')+'</span>'+
+          (S.canWrite?'<button class="add" data-act="new" data-apt="'+a+'" data-date="'+D+'">+ Új foglalás</button>':'');
+      }
+      return '<div class="acard'+(occ?' occ':'')+'" style="--c:var(--a'+(a+1)+')"><div class="hd"><span class="nm"><i></i>'+esc(S.names[a])+'</span><span class="tag '+(occ?'occ':'free')+'">'+(occ?'Foglalt':'Szabad')+'</span></div>'+rows+foot+'</div>';
+    }).join('')+'</div>';
+    h+='<p class="hint">Piros: aznap éjjel foglalt. Zöld: szabad. Ha egy apartmanban cserenap van, a távozó és az érkező is látszik.</p>';
+    return h;
+  }
+
+  function weekView(){
+    var W=monday(S.date),T=todayStr(),B=S.bookings;
+    var days=[0,1,2,3,4,5,6].map(function(i){return add(W,i);});
+    var h='<div class="nav">'+
+      '<button class="ib" data-act="prev" aria-label="Előző hét">‹</button>'+
+      '<button class="ib" data-act="next" aria-label="Következő hét">›</button>'+
+      '<button class="btn" data-act="today">Ez a hét</button>'+
+      '<input class="jump" type="date" id="jump" value="'+S.date+'" aria-label="Ugrás dátumra">'+
+      '<h2>'+esc(fmt(W,true))+' – '+esc(fmt(days[6]))+'<small>'+(W===monday(T)?'Ez a hét':'Hétfőtől vasárnapig')+'</small></h2>'+
+    '</div>';
+    h+='<div class="weekwrap"><div class="week">';
+    h+='<div class="wk-row wk-head"><div class="wk-label"></div><div class="wk-lane">'+days.map(function(d){
+      return '<div class="wk-day'+(d===T?' today':'')+'"><b>'+SH[wd(d)]+'</b><span>'+dom(d)+'</span></div>';
+    }).join('')+'</div></div>';
+    [0,1,2,3].forEach(function(a){
+      var cells=days.map(function(d,i){
+        return '<button class="wk-cell'+(d===T?' today':'')+'" style="grid-column:'+(i*2+1)+' / span 2" data-act="new" data-apt="'+a+'" data-date="'+d+'" aria-label="Új foglalás: '+esc(S.names[a])+', '+d+'"></button>';
+      }).join('');
+      var bars=B.filter(function(b){return b.apt===a;}).map(function(b){
+        var s=(u(b.checkIn)-u(W))/DAY_MS, e=(u(b.checkOut)-u(W))/DAY_MS;
+        var sh=2*s+1, eh=2*e+1;
+        if(eh<=0||sh>=14) return '';
+        var cl=sh<0, cr=eh>14;
+        sh=Math.max(0,sh); eh=Math.min(14,eh);
+        return '<button class="wk-bar'+(cl?' cut-l':'')+(cr?' cut-r':'')+'" style="--c:var(--a'+(a+1)+');grid-column:'+(sh+1)+' / '+(eh+1)+'" data-act="edit" data-id="'+esc(b.id)+'"><b>'+esc(b.guest)+'</b><small>'+(b.people?esc(b.people)+' fő · ':'')+nights(b)+' éj</small></button>';
+      }).join('');
+      h+='<div class="wk-row" style="--c:var(--a'+(a+1)+')"><div class="wk-label"><i></i><span>'+esc(S.names[a])+'</span></div><div class="wk-lane">'+cells+bars+'</div></div>';
+    });
+    h+='</div></div>';
+    var items=[];
+    days.forEach(function(d){
+      B.filter(function(b){return b.checkIn===d;}).sort(byApt).forEach(function(b){items.push({d:d,t:'arr',b:b});});
+      B.filter(function(b){return b.checkOut===d;}).sort(byApt).forEach(function(b){items.push({d:d,t:'dep',b:b});});
+    });
+    h+='<section class="sec"><h3>A hét érkezői és távozói <em>'+items.length+'</em></h3>';
+    if(!items.length) h+='<div class="none">Ezen a héten nincs érkezés vagy távozás.</div>';
+    else h+='<div class="wl">'+items.map(function(it){
+      var a=it.b.apt|0;
+      return '<button class="wl-item" style="--c:var(--a'+(a+1)+')" data-act="edit" data-id="'+esc(it.b.id)+'">'+
+        '<span class="wl-d">'+SH[wd(it.d)]+' '+esc(fmt(it.d))+'</span>'+
+        '<span class="tag '+(it.t==='arr'?'arr':'dep')+'">'+(it.t==='arr'?'Érkezik':'Távozik')+'</span>'+
+        '<span class="wl-g">'+esc(it.b.guest)+'</span>'+
+        '<span class="chip"><i></i>'+esc(S.names[a])+'</span></button>';
+    }).join('')+'</div>';
+    h+='</section>';
+    return h;
+  }
+
+  function monthView(){
+    var first=S.date.slice(0,8)+'01', next=addMonths(first,1), T=todayStr(), B=S.bookings;
+    var nd=(u(next)-u(first))/DAY_MS, lead=(wd(first)+6)%7, weeks=Math.ceil((lead+nd)/7), start=add(first,-lead);
+    var h='<div class="nav"><button class="ib" data-act="prev" aria-label="Előző hónap">‹</button><button class="ib" data-act="next" aria-label="Következő hónap">›</button><button class="btn" data-act="today">Ez a hónap</button><h2>'+monthTitle(first)+'<small>Kattints egy napra a részletekért</small></h2></div>';
+    h+='<div class="mgrid mhead">'+['H','K','Sze','Cs','P','Szo','V'].map(function(x){return '<div>'+x+'</div>';}).join('')+'</div><div class="mgrid">';
+    for(var i=0;i<weeks*7;i++){
+      var d=add(start,i), inM=d.slice(0,7)===first.slice(0,7);
+      var arr=B.filter(function(b){return b.checkIn===d;}).length, dep=B.filter(function(b){return b.checkOut===d;}).length;
+      var sq=[0,1,2,3].map(function(a){
+        var on=B.some(function(b){return b.apt===a&&b.checkIn<=d&&d<b.checkOut;});
+        return '<i class="'+(on?'on':'')+'" style="--c:var(--a'+(a+1)+')"></i>';
+      }).join('');
+      h+='<button class="mcell'+(inM?'':' out')+(d===T?' today':'')+'" data-act="goday" data-date="'+d+'" aria-label="'+esc(fmtLong(d))+'"><span class="md">'+dom(d)+'</span><span class="sq">'+sq+'</span><span class="mv">'+(arr?'<b class="a">↓'+arr+'</b>':'')+(dep?'<b class="d">↑'+dep+'</b>':'')+'</span></button>';
+    }
+    h+='</div><div class="legend">'+S.names.map(function(n,i){return '<span class="chip" style="--c:var(--a'+(i+1)+')"><i></i>'+esc(n)+'</span>';}).join('')+'</div>';
+    h+='<p class="hint">A négy négyzet a négy apartman éjszakai foglaltsága: kitöltött, ha aznap éjjel foglalt. ↓ érkezők száma, ↑ távozók száma.</p>';
+    return h;
+  }
+
+  function tbl(title,rows,tot){
+    var r=function(n,x,cls){return '<tr'+(cls?' class="'+cls+'"':'')+'><td>'+esc(n)+'</td><td>'+x.n+'</td><td>'+Math.round(x.nights)+'</td><td>'+esc(money(Math.round(x.rev)))+'</td><td>'+esc(money(Math.round(x.paid)))+'</td><td>'+esc(money(Math.round(x.due)))+'</td></tr>';};
+    return '<section class="sec"><h3>'+title+'</h3><div class="tw"><table class="tbl"><thead><tr><th>'+(title.indexOf('Forrás')===0?'Forrás':'Apartman')+'</th><th>Foglalás</th><th>Éjszaka</th><th>Bevétel</th><th>Kifizetve</th><th>Hátralék</th></tr></thead><tbody>'+
+      rows.map(function(x){return r(x[0],x[1]);}).join('')+r('Összesen',tot,'tot')+'</tbody></table></div></section>';
+  }
+  function statsView(){
+    var M0=S.date.slice(0,8)+'01', M1=addMonths(M0,1), days=(u(M1)-u(M0))/DAY_MS;
+    var SRC=['Booking','Szallas.hu','Telefon'];
+    var blank=function(){return {n:0,nights:0,rev:0,paid:0,due:0};};
+    var bySrc={}, byApt=[blank(),blank(),blank(),blank()], tot=blank();
+    SRC.forEach(function(s){bySrc[s]=blank();});
+    S.bookings.forEach(function(b){
+      var ns=nights(b); if(!(ns>0)) return;
+      var from=b.checkIn>M0?b.checkIn:M0, to=b.checkOut<M1?b.checkOut:M1;
+      var n=(u(to)-u(from))/DAY_MS; if(!(n>0)) return;
+      var f=n/ns, rev=(+b.price||0)*f, paid=Math.min((+b.paid||0)*f,rev), s=b.source||'Nincs megadva';
+      if(!bySrc[s]) bySrc[s]=blank();
+      [bySrc[s],byApt[b.apt|0],tot].forEach(function(x){x.n++;x.nights+=n;x.rev+=rev;x.paid+=paid;x.due+=rev-paid;});
+    });
+    var occ=Math.round(tot.nights/(4*days)*100);
+    var rowsSrc=SRC.concat(Object.keys(bySrc).filter(function(k){return SRC.indexOf(k)<0&&bySrc[k].n;})).map(function(k){return [k,bySrc[k]];});
+    var rowsApt=byApt.map(function(x,i){return [S.names[i],x];});
+    var h='<div class="nav"><button class="ib" data-act="prev" aria-label="Előző hónap">‹</button><button class="ib" data-act="next" aria-label="Következő hónap">›</button><button class="btn" data-act="today">Ez a hónap</button><h2>'+monthTitle(M0)+'<small>Havi összesítés</small></h2></div>';
+    h+='<div class="stats"><div class="stat"><b>'+esc(money(Math.round(tot.rev)))+'</b>bevétel</div><div class="stat"><b>'+esc(money(Math.round(tot.paid)))+'</b>kifizetve</div><div class="stat"><b>'+esc(money(Math.round(tot.due)))+'</b>hátralék</div><div class="stat"><b>'+occ+'%</b>kihasználtság</div><div class="stat"><b>'+Math.round(tot.nights)+'</b>foglalt éjszaka</div></div>';
+    h+=tbl('Forrás szerint',rowsSrc,tot)+tbl('Apartman szerint',rowsApt,tot);
+    h+='<p class="hint">A bevétel a foglalás éjszakái szerint oszlik a hónapok között: egy két hónapot átívelő foglalás ára arányosan mindkét hónapba kerül. A kihasználtság a hónap összes apartman-éjszakájához viszonyít.</p>';
+    return h;
+  }
+
+  function render(){
+    ['day','week','month','guests','stats'].forEach(function(v){ var t=$('#tab-'+v); if(t) t.setAttribute('aria-selected',S.view===v); });
+    $('#fab').hidden=!S.canWrite;
+    if(S.loaded) persist();
+    updateBackupInfo();
+    var h='';
+    if(S.notice) h+='<div class="banner ok"><span>'+esc(S.notice)+'</span></div>';
+    if(S.storeErr) h+='<div class="banner"><span>A telefon nem engedi az adatok tárolását, ezért a változtatások nem maradnak meg. Ne privát módban használd, vagy telepítsd az appot a kezdőképernyőre.</span></div>';
+    if(S.loaded&&S.bookings.length&&backupDue()) h+='<div class="banner"><span>'+(S.lastBackup?'Több mint egy hete nem volt mentés.':'Még nem mentetted el az adatokat.')+' Telefon elvesztésekor a foglalások is elvesznének.</span><button class="btn" data-act="backup">Mentés most</button></div>';
+    if(S.nodb) h+='<div class="banner"><span>A mentés most nem érhető el, ezért a változtatások nem maradnak meg. Nyisd meg az oldalt bejelentkezve.</span></div>';
+    if(S.err) h+='<div class="banner"><span>A foglalások betöltése nem sikerült. Frissítsd az oldalt.</span></div>';
+    if(!S.loaded){
+      h+='<div class="empty">'+(S.slow?'A betöltés a szokásosnál tovább tart. Ha így marad, ellenőrizd az internetkapcsolatot.':'Foglalások betöltése…')+'</div>';
+    } else {
+      var demoN=S.bookings.filter(function(b){return b.demo;}).length;
+      if(demoN&&S.canWrite) h+='<div class="banner"><span>Ezek közül '+demoN+' foglalás mintaadat, hogy lásd, hogyan működik.</span><button class="btn" data-act="clear-demo">Mintaadatok törlése</button></div>';
+      if(!S.bookings.length) h+='<div class="empty"><b>Még nincs foglalás.</b> Az első foglalással megjelenik az érkezők, távozók listája és a heti naptár. Nyomd meg az „Új foglalás” gombot.</div>';
+      h+=({week:weekView,month:monthView,guests:guestView,stats:statsView}[S.view]||dayView)();
+    }
+    var ae=document.activeElement, keepQ=ae&&ae.id==='gq', ss=keepQ?ae.selectionStart:0, se=keepQ?ae.selectionEnd:0;
+    $('#main').innerHTML=h;
+    if(keepQ){ var q=$('#gq'); if(q){ q.focus(); try{q.setSelectionRange(ss,se);}catch(_){} } }
+  }
+
+  /* ---------- foglalás űrlap ---------- */
+  function field(id,label,val,type,extra){
+    return '<label>'+label+'<input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val)+'" '+(extra||'')+'></label>';
+  }
+  function openForm(b,pre){
+    if(!b&&!S.canWrite) return;
+    pre=pre||{};
+    var v=b||{apt:pre.apt||0,guest:'',phone:'',email:'',people:2,checkIn:pre.date||S.date,checkOut:add(pre.date||S.date,1),price:'',paid:'',note:''};
+    M={id:b?b.id:null,armed:false,busy:false};
+    var ro=!S.canWrite;
+    var src=v.source||'Telefon', typ=v.type||'magan';
+    var seen={}, names=[];
+    S.bookings.forEach(function(x){ if(x.guest&&!seen[x.guest.toLowerCase()]){ seen[x.guest.toLowerCase()]=1; names.push(x.guest); } });
+    $('#modal').innerHTML='<div class="ov" data-act="close-ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mt">'+
+      '<h2 id="mt">'+(b?'Foglalás részletei':'Új foglalás')+'</h2>'+
+      '<form id="bform" novalidate><fieldset '+(ro?'disabled':'')+'><div class="fg">'+
+        '<label>Apartman<select id="f-apt">'+S.names.map(function(n,i){return '<option value="'+i+'"'+(i===(v.apt|0)?' selected':'')+'>'+esc(n)+'</option>';}).join('')+'</select></label>'+
+        '<label>Foglalás forrása<select id="f-src">'+['Booking','Szallas.hu','Telefon'].map(function(s){return '<option'+(s===src?' selected':'')+'>'+s+'</option>';}).join('')+'</select></label>'+
+        '<label>Vendég típusa<select id="f-type"><option value="magan"'+(typ==='magan'?' selected':'')+'>Magánszemély</option><option value="ceg"'+(typ==='ceg'?' selected':'')+'>Cég</option></select></label>'+
+        field('f-people','Létszám (fő)',v.people,'number','min="0" inputmode="numeric"')+
+        '<div class="full"><label>Vendég neve<input id="f-guest" type="text" value="'+esc(v.guest)+'" autocomplete="off" list="dl-guests"></label><datalist id="dl-guests">'+names.map(function(n){return '<option value="'+esc(n)+'"></option>';}).join('')+'</datalist></div>'+
+        '<div class="full" id="f-co"'+(typ==='ceg'?'':' hidden')+'><div class="fg">'+
+          '<div class="full">'+field('f-company','Cég neve',v.company||'','text','autocomplete="off"')+'</div>'+
+          '<div class="full">'+field('f-tax','Adószám',v.taxNumber||'','text','inputmode="numeric" placeholder="12345678-2-41"')+'</div>'+
+        '</div></div>'+
+        field('f-in','Érkezés',v.checkIn,'date')+
+        field('f-out','Távozás',v.checkOut,'date')+
+        field('f-phone','Telefon',v.phone,'tel')+
+        field('f-email','E-mail',v.email,'email')+
+        '<div class="full">'+field('f-addr','Számlázási cím',v.address||'','text','autocomplete="off" placeholder="Irányítószám, település, utca, házszám"')+'</div>'+
+        field('f-price','Teljes ár (Ft)',v.price,'number','min="0" inputmode="numeric"')+
+        field('f-paid','Kifizetve (Ft)',v.paid,'number','min="0" inputmode="numeric"')+
+        '<label class="full">Megjegyzés<textarea id="f-note">'+esc(v.note)+'</textarea></label>'+
+      '</div></fieldset>'+
+      '<p class="err" id="f-err" role="alert"></p>'+
+      '<div class="acts">'+
+        (ro?'':'<button class="btn primary" type="submit" id="f-save">Mentés</button>')+
+        '<button class="btn" type="button" data-act="close">'+(ro?'Bezárás':'Mégse')+'</button>'+
+        (b&&!ro?'<span class="grow"></span><button class="btn danger" type="button" data-act="del" id="f-del">Törlés</button>':'')+
+      '</div></form></div></div>';
+    var g=$('#f-guest'); if(g&&!ro&&!b) g.focus();
+  }
+  function closeModal(){ $('#modal').innerHTML=''; M=null; pending=null; }
+  function notify(msg){ S.notice=msg; render(); setTimeout(function(){ S.notice=''; render(); },7000); }
+  function formErr(t){ var e=$('#f-err'); if(e) e.textContent=t; }
+  function val(id){ return $('#'+id).value; }
+
+  async function saveForm(ev){
+    ev.preventDefault();
+    if(!M||M.busy) return;
+    var b={
+      apt:+val('f-apt'), guest:val('f-guest').trim(), phone:val('f-phone').trim(), email:val('f-email').trim(),
+      people:+val('f-people')||0, checkIn:val('f-in'), checkOut:val('f-out'),
+      price:+val('f-price')||0, paid:+val('f-paid')||0, note:val('f-note').trim(),
+      source:val('f-src'), type:val('f-type'), company:'', taxNumber:'', address:val('f-addr').trim()
+    };
+    if(!b.guest) return formErr('Add meg a vendég nevét.');
+    if(b.type==='ceg'){
+      b.company=val('f-company').trim();
+      if(!b.company) return formErr('Add meg a cég nevét.');
+      var tx=normTax(val('f-tax'));
+      if(!tx) return formErr('Az adószám 11 számjegyű legyen, például 12345678-2-41.');
+      b.taxNumber=tx;
+    }
+    if(!b.checkIn||!b.checkOut) return formErr('Add meg az érkezés és a távozás napját.');
+    if(b.checkOut<=b.checkIn) return formErr('A távozás napja az érkezés napja után legyen.');
+    var clash=S.bookings.find(function(o){return o.id!==M.id&&o.apt===b.apt&&o.checkIn<b.checkOut&&b.checkIn<o.checkOut;});
+    if(clash) return formErr('Ebben az időszakban az apartman már foglalt: '+clash.guest+' ('+fmt(clash.checkIn)+' – '+fmt(clash.checkOut)+').');
+    M.busy=true; $('#f-save').disabled=true; formErr('');
+    try{
+      if(db){
+        var col=db.collection('bookings');
+        var ref=M.id?col.doc(M.id):col.doc();
+        await ref.set(b);
+      } else {
+        if(M.id){ S.bookings=S.bookings.map(function(o){return o.id===M.id?Object.assign({id:M.id},b):o;}); }
+        else { S.bookings=S.bookings.concat([Object.assign({id:'l'+Date.now()},b)]); }
+      }
+      closeModal(); render();
+    }catch(e){
+      M.busy=false; var s=$('#f-save'); if(s) s.disabled=false;
+      formErr('A mentés nem sikerült. Próbáld újra egy perc múlva.');
+    }
+  }
+
+  async function deleteBooking(btn){
+    if(!M||!M.id||M.busy) return;
+    if(!M.armed){ M.armed=true; btn.classList.add('armed'); btn.textContent='Biztosan törlöd?'; return; }
+    M.busy=true; btn.disabled=true;
+    try{
+      if(db) await db.collection('bookings').doc(M.id).delete();
+      else S.bookings=S.bookings.filter(function(o){return o.id!==M.id;});
+      closeModal(); render();
+    }catch(e){ M.busy=false; btn.disabled=false; formErr('A törlés nem sikerült. Próbáld újra.'); }
+  }
+
+  async function clearDemo(){
+    var list=S.bookings.filter(function(b){return b.demo;});
+    for(var i=0;i<list.length;i++){
+      try{ if(db) await db.collection('bookings').doc(list[i].id).delete(); }catch(e){}
+    }
+    if(!db){ S.bookings=S.bookings.filter(function(b){return !b.demo;}); render(); }
+  }
+
+  /* ---------- apartmanok átnevezése ---------- */
+  function openNames(){
+    if(!S.canWrite) return;
+    M={id:null,busy:false};
+    $('#modal').innerHTML='<div class="ov" data-act="close-ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="nt">'+
+      '<h2 id="nt">Apartmanok neve</h2><form id="nform" novalidate><div class="fg">'+
+      S.names.map(function(n,i){return '<div class="full">'+field('n-'+i,'Apartman '+(i+1),n,'text','maxlength="30"')+'</div>';}).join('')+
+      '</div><p class="err" id="f-err" role="alert"></p><div class="acts"><button class="btn primary" type="submit" id="n-save">Mentés</button><button class="btn" type="button" data-act="close">Mégse</button></div></form></div></div>';
+  }
+  async function saveNames(ev){
+    ev.preventDefault();
+    var names=[0,1,2,3].map(function(i){return val('n-'+i).trim()||DEFAULT_NAMES[i];});
+    try{
+      if(db) await db.doc('settings/apartments').set({names:names});
+      S.names=names; closeModal(); render();
+    }catch(e){ formErr('A mentés nem sikerült. Próbáld újra.'); }
+  }
+
+  /* ---------- események ---------- */
+  function shift(n){
+    if(S.view==='week') return add(S.date,7*n);
+    if(S.view==='month'||S.view==='stats') return addMonths(S.date,n);
+    return add(S.date,n);
+  }
+  document.addEventListener('click',function(e){
+    var t=e.target.closest('[data-act]'); if(!t) return;
+    var act=t.dataset.act;
+    if(act==='close-ov'){ if(e.target===t) closeModal(); return; }
+    switch(act){
+      case 'view': S.view=t.dataset.v; try{location.hash={day:'nap',week:'het',month:'honap',guests:'vendegek',stats:'osszesites'}[S.view];}catch(_){} render(); break;
+      case 'prev': S.date=shift(-1); render(); break;
+      case 'next': S.date=shift(1); render(); break;
+      case 'goday': S.date=t.dataset.date; S.view='day'; try{location.hash='nap';}catch(_){} render(); break;
+      case 'backup': doBackup(); break;
+      case 'backup-yes': closeModal(); markBackup('Mentés rögzítve.'); break;
+      case 'restore': pickRestore(); break;
+      case 'restore-replace': restoreApply(t,'replace'); break;
+      case 'restore-merge': restoreApply(t,'merge'); break;
+      case 'install': doInstall(); break;
+      case 'today': S.date=todayStr(); render(); break;
+      case 'new': openForm(null,{apt:+(t.dataset.apt||0),date:t.dataset.date||S.date}); break;
+      case 'edit': var b=S.bookings.find(function(x){return x.id===t.dataset.id;}); if(b) openForm(b); break;
+      case 'close': closeModal(); break;
+      case 'del': deleteBooking(t); break;
+      case 'names': openNames(); break;
+      case 'clear-demo': clearDemo(); break;
+    }
+  });
+  document.addEventListener('submit',function(e){
+    if(e.target.id==='bform') saveForm(e);
+    else if(e.target.id==='nform') saveNames(e);
+  });
+  document.addEventListener('change',function(e){
+    var id=e.target.id;
+    if(id==='jump'&&e.target.value){ S.date=e.target.value; render(); }
+    else if(id==='f-type'){ var co=$('#f-co'); if(co) co.hidden=e.target.value!=='ceg'; }
+    else if(id==='restore-file'){ handleRestoreFile(e.target); }
+    else if(id==='f-guest'&&M&&!M.id){
+      /* ismert vendég: a hiányzó adatokat kitölti a legutóbbi foglalásából */
+      var nm=e.target.value.trim().toLowerCase();
+      var prev=S.bookings.filter(function(x){return x.guest&&x.guest.toLowerCase()===nm;}).sort(function(x,y){return x.checkIn<y.checkIn?1:-1;})[0];
+      if(!prev) return;
+      var set=function(i,x){ var el=$('#'+i); if(el&&!el.value&&x) el.value=x; };
+      set('f-phone',prev.phone); set('f-email',prev.email); set('f-addr',prev.address);
+      if(prev.type==='ceg'){ var t=$('#f-type'); if(t){ t.value='ceg'; $('#f-co').hidden=false; } set('f-company',prev.company); set('f-tax',prev.taxNumber); }
+    }
+  });
+  document.addEventListener('input',function(e){
+    if(e.target.id==='gq'){ S.q=e.target.value; var r=$('#gres'); if(r) r.innerHTML=guestResults(); }
+  });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&M) closeModal(); });
+  window.addEventListener('hashchange',function(){
+    var h=location.hash.replace('#','');
+    var map={nap:'day',het:'week',honap:'month',vendegek:'guests',osszesites:'stats'};
+    if(map[h]){ S.view=map[h]; render(); }
+  });
+
+  /* ---------- helyi tárolás ---------- */
+  var KEY='apartman-foglalasok.v1', lastSaved='', pending=null, deferredInstall=null;
+  function validDate(d){ return /^\d{4}-\d{2}-\d{2}$/.test(d||'') && str(u(d))===d; }
+  function okBooking(b){ return !!(b&&Number.isInteger(b.apt)&&b.apt>=0&&b.apt<=3&&b.guest&&validDate(b.checkIn)&&validDate(b.checkOut)&&b.checkOut>b.checkIn); }
+  function cleanBooking(r){
+    if(!r||typeof r!=='object') return null;
+    var t=function(x){return String(x==null?'':x).trim();};
+    var b={
+      id:String(r.id||'').replace(/[^A-Za-z0-9_-]/g,'')||('i'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+      apt:+r.apt, guest:t(r.guest), phone:t(r.phone), email:t(r.email), people:Math.max(0,+r.people||0),
+      checkIn:t(r.checkIn), checkOut:t(r.checkOut), price:Math.max(0,+r.price||0), paid:Math.max(0,+r.paid||0),
+      note:t(r.note), source:['Booking','Szallas.hu','Telefon'].indexOf(r.source)>=0?r.source:'Telefon',
+      type:r.type==='ceg'?'ceg':'magan', company:t(r.company), taxNumber:t(r.taxNumber), address:t(r.address)
+    };
+    if(r.demo) b.demo=true;
+    return okBooking(b)?b:null;
+  }
+  function loadLocal(){
+    try{
+      var raw=localStorage.getItem(KEY);
+      if(!raw) return;
+      var d=JSON.parse(raw);
+      if(Array.isArray(d.bookings)) S.bookings=d.bookings.map(cleanBooking).filter(Boolean);
+      if(Array.isArray(d.names)&&d.names.length===4) S.names=d.names.map(function(n,i){return String(n||'').trim()||DEFAULT_NAMES[i];});
+      S.lastBackup=d.lastBackup||'';
+      lastSaved=raw;
+    }catch(_){}
+  }
+  function persist(){
+    try{
+      var raw=JSON.stringify({bookings:S.bookings,names:S.names,lastBackup:S.lastBackup||''});
+      if(raw!==lastSaved){ localStorage.setItem(KEY,raw); lastSaved=raw; }
+      S.storeErr=false;
+    }catch(e){ S.storeErr=true; }
+  }
+  function backupDue(){
+    if(!S.lastBackup) return true;
+    var t=new Date(S.lastBackup).getTime();
+    return !(t>0)||(Date.now()-t)>7*DAY_MS;
+  }
+  function localDay(iso){ var d=new Date(iso); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function updateBackupInfo(){
+    var el=$('#bk-info'); if(!el) return;
+    el.textContent=(S.lastBackup?'Utolsó mentés: '+fmtLong(localDay(S.lastBackup))+' ':'Még nem volt mentés. ')+
+      S.bookings.length+' foglalás van a telefonon. A mentés fájlba kerül: ha a telefon megosztási menüt ad, válaszd a Google Drive-ot, ha fájlnevet kér, írd be: apartman-mentes.json';
+  }
+
+  /* ---------- mentés és visszaállítás ---------- */
+  function markBackup(msg){ S.lastBackup=new Date().toISOString(); persist(); notify(msg); }
+  function isNative(){ try{ return !!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform()); }catch(_){ return false; } }
+  async function nativeBackup(json,name){
+    var P=window.Capacitor.Plugins||{};
+    if(!P.Filesystem||!P.Share) throw new Error('a mentéshez szükséges bővítmény hiányzik az appból');
+    await P.Filesystem.writeFile({path:name,data:json,directory:'CACHE',encoding:'utf8'});
+    var r=await P.Filesystem.getUri({path:name,directory:'CACHE'});
+    await P.Share.share({title:'Apartman foglalások mentés',dialogTitle:'Mentés: válaszd a Google Drive-ot',files:[r.uri]});
+  }
+  function askBackupDone(){
+    M={backupAsk:true};
+    $('#modal').innerHTML='<div class="ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="bt"><h2 id="bt">Sikerült a mentés?</h2>'+
+      '<p>Csak akkor jelölöm mentettnek, ha tényleg elmentetted a fájlt (a Drive-ra vagy a telefonra). Ha megszakítottad, válaszd a „Nem” gombot.</p>'+
+      '<div class="acts"><button class="btn primary" data-act="backup-yes">Igen, elmentettem</button><button class="btn" data-act="close">Nem</button></div></div></div>';
+  }
+  async function doBackup(){
+    var data={app:'apartman-foglalasok',version:1,exportedAt:new Date().toISOString(),names:S.names,bookings:S.bookings};
+    var json=JSON.stringify(data,null,1);
+    var name='apartman-mentes-'+todayStr()+'.json';
+    if(isNative()){
+      try{ await nativeBackup(json,name); askBackupDone(); }
+      catch(e){ var m=String(e&&e.message||e); if(!/cancel/i.test(m)) notify('A mentés nem sikerült: '+m); }
+      return;
+    }
+    var blob=new Blob([json],{type:'application/json'});
+    var file=null; try{ file=new File([blob],name,{type:'application/json'}); }catch(_){}
+    try{
+      if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:'Apartman foglalások mentés'});
+        markBackup('A mentés elkészült. Ha a Drive-ot választottad, ott megtalálod a fájlt.');
+        return;
+      }
+    }catch(e){ if(e&&e.name==='AbortError') return; }
+    var url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); },4000);
+    askBackupDone();
+  }
+  function pickRestore(){ var f=$('#restore-file'); f.value=''; f.click(); }
+  function handleRestoreFile(inp){
+    var f=inp.files&&inp.files[0]; if(!f) return;
+    var r=new FileReader();
+    r.onerror=function(){ notify('A fájlt nem sikerült megnyitni.'); };
+    r.onload=function(){
+      var d=null;
+      try{ d=JSON.parse(r.result); }catch(_){}
+      if(!d||d.app!=='apartman-foglalasok'||!Array.isArray(d.bookings)){ notify('Ez nem ennek az appnak a mentése. Válaszd az "apartman-mentes-….json" fájlt.'); return; }
+      var good=d.bookings.map(cleanBooking).filter(Boolean);
+      var names=(Array.isArray(d.names)&&d.names.length===4)?d.names.map(function(n,i){return String(n||'').trim()||DEFAULT_NAMES[i];}):null;
+      pending={bookings:good,names:names,skipped:d.bookings.length-good.length};
+      M={restore:true,armed:false};
+      $('#modal').innerHTML='<div class="ov" data-act="close-ov"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rt"><h2 id="rt">Visszaállítás</h2>'+
+        '<p>A fájlban <b>'+good.length+'</b> foglalás van'+(pending.skipped?' ('+pending.skipped+' hibás sort kihagytam)':'')+'. A telefonon most <b>'+S.bookings.length+'</b> foglalás van.</p>'+
+        '<p class="hint">„Hozzáadja az újakat”: a meglévők megmaradnak, a fájlból csak a hiányzók kerülnek be. „Mindent lecserél”: a mostani foglalások törlődnek, és a fájl tartalma kerül a helyükre.</p>'+
+        '<div class="acts"><button class="btn primary" data-act="restore-merge">Hozzáadja az újakat</button><button class="btn danger" data-act="restore-replace">Mindent lecserél</button><button class="btn" data-act="close">Mégse</button></div></div></div>';
+    };
+    r.readAsText(f);
+  }
+  function restoreApply(btn,mode){
+    if(!pending||!M) return;
+    if(mode==='replace'&&!M.armed){ M.armed=true; btn.classList.add('armed'); btn.textContent='Biztosan lecseréled?'; return; }
+    var imp=pending, n=0;
+    if(mode==='replace'){
+      S.bookings=imp.bookings.slice(); if(imp.names) S.names=imp.names; n=imp.bookings.length;
+    } else {
+      var idx={}; S.bookings.forEach(function(b,i){ idx[b.id]=i; });
+      imp.bookings.forEach(function(b){
+        if(idx[b.id]!==undefined){ S.bookings[idx[b.id]]=b; return; }
+        var dup=S.bookings.some(function(o){return o.apt===b.apt&&o.checkIn===b.checkIn&&o.checkOut===b.checkOut&&(o.guest||'').toLowerCase()===b.guest.toLowerCase();});
+        if(!dup){ S.bookings.push(b); n++; }
+      });
+    }
+    closeModal();
+    notify(mode==='replace'?'Visszaállítva: '+n+' foglalás.':n+' új foglalás került be.');
+  }
+  function doInstall(){
+    if(!deferredInstall) return;
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(function(){ deferredInstall=null; var b=$('#installbtn'); if(b) b.hidden=true; });
+  }
+  window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferredInstall=e; var b=$('#installbtn'); if(b) b.hidden=false; });
+  window.addEventListener('appinstalled',function(){ deferredInstall=null; var b=$('#installbtn'); if(b) b.hidden=true; });
+
+  /* ---------- indulás ---------- */
+  function init(){
+    var h=''; try{h=location.hash.replace('#','');}catch(_){}
+    var hm={het:'week',honap:'month',vendegek:'guests',osszesites:'stats'}; if(hm[h]) S.view=hm[h];
+    loadLocal();
+    S.loaded=true;
+    render();
+    try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(_){}
+  }
+  init();
+})();
+</script>
+</body>
+</html>
