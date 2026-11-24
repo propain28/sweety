@@ -8,6 +8,7 @@
     "@capacitor/cli": "latest",
     "@capacitor/core": "latest",
     "@capacitor/filesystem": "latest",
+    "@capacitor/preferences": "latest",
     "@capacitor/share": "latest"
   }
 }
