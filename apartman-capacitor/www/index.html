@@ -669,6 +669,19 @@ textarea{resize:vertical;min-height:64px}
       if(raw!==lastSaved){ localStorage.setItem(KEY,raw); lastSaved=raw; }
       S.storeErr=false;
     }catch(e){ S.storeErr=true; }
+    syncWidget();
+  }
+  /* A kezdőképernyős widget ugyanazt az adatot olvassa: csak az apartman, a dátumok és a létszám, nevek nélkül. */
+  var lastWidget='';
+  function syncWidget(){
+    try{
+      if(!window.Capacitor||!window.Capacitor.isNativePlatform||!window.Capacitor.isNativePlatform()) return;
+      var P=window.Capacitor.Plugins||{}; if(!P.Preferences) return;
+      var v=JSON.stringify({names:S.names,b:S.bookings.map(function(b){return {a:b.apt,i:b.checkIn,o:b.checkOut,p:b.people||0};})});
+      if(v===lastWidget) return;
+      lastWidget=v;
+      P.Preferences.set({key:'apartmanWidget',value:v});
+    }catch(_){}
   }
   function backupDue(){
     if(!S.lastBackup) return true;
